@@ -1,0 +1,48 @@
+初始生成密钥，克隆项目：
+	生成ssh密钥：ssh-keygen -t rsa
+	将生成的公钥放在github账号ssh上
+	克隆项目：git clone https://github.com/dksky/myFirstProject.git
+
+全局配置：
+	git config --global user.email "you@example.com"  
+	git config --global user.name "Your Name"
+	查看全局配置：git config --global --list
+
+将修改提交：
+	#touch *
+	#echo "FirstProject push"
+	暂存：git add *
+	查看状态：git status
+	提交到本地仓库：git commit -m "create test.py"
+	链接远端仓库（通常主远端仓库被称为origin）：
+	git remote add origin https://github.com/goozgk/work.git
+	上传到服务器，git push 远端仓库名字(origin) 分支名字(master)：
+	git push origin master
+
+更新：
+	更新本地仓库：git fetch origin：
+	更新代码：git pull
+
+分支：
+	创建新分支
+	git branch <bra1>
+	切换到新分支
+	git checkout <bra1>
+	删除分支
+	git branch -d <BranchName>
+	查看当前分支
+	git branch
+	git show-branch
+	切换到各个分支后，新建的文件，各个分支都可以看到的！！！（提交之前），但是在某个分支上commit后，只有这个分支可以看到！！！
+	在分支上测试完成后，git branch master切换回master分支，执行
+	git merge <branchName>; git branch -d <branchName>
+
+
+回滚：
+	查看日志：git log
+	add ,commit 以后发现代码有点问题，可以本地回退代码到指定版本：
+	git reset --hard 5bba88b303dcfe323e9454ce8b2280e44b0d13e5
+	上述命令中，上一个版本就是HEAD^，上上一个版本就是HEAD^^，当然往上100个版本写100个^比较容易数不过来，所以写成HEAD~100
+	
+	若已经push代码到线上仓库，想本地代码和线上代码同步回退，使用git revert
+	git revert 5bba88b303dcfe323e9454ce8b2280e44b0d13e5
