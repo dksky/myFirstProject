@@ -8,6 +8,8 @@
 	git config --global user.name "Your Name"
 	查看全局配置：git config --global --list
 
+	查看仓库信息：git remote show origin
+	
 将修改提交：
 	#touch *
 	#echo "FirstProject push"
