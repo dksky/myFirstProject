@@ -1,0 +1,32 @@
+compile('org.jasypt:jasypt-spring31:1.9.2')
+compile('com.github.ulisesbocchio:jasypt-spring-boot-starter:2.1.0')
+
+
+
+<bean id="environmentVariablesConfiguration" 
+     class="org.jasypt.encryption.pbe.config.EnvironmentStringPBEConfig"> 
+	   <property name="algorithm" value="PBEWithMD5AndDES" /> 
+	   <property name="password" value="#{systemProperties['jasypt.encryptor.password']}" /> 
+	   
+	   <!--  <property name="passwordEnvName" value="jasypt.encryptor.password" /> 
+	   密钥passwordEnvName使用环境变量APP_ENCRYPTION_PASSWORD 中设置的值 
+	  --> 
+	</bean> 
+	  
+	<!--                                                                      --> 
+	<!-- The will be the encryptor used for decrypting configuration values.  --> 
+	<!--                                                                      --> 
+	<bean id="configurationEncryptor" 
+	     class="org.jasypt.encryption.pbe.StandardPBEStringEncryptor"> 
+	   <property name="config" ref="environmentVariablesConfiguration" /> 
+	</bean> 
+	
+	
+	<bean id="propertyConfigurer" 
+	     class="org.jasypt.spring31.properties.EncryptablePropertyPlaceholderConfigurer"> 
+	   <constructor-arg ref="configurationEncryptor" /> 
+	   <property name="locations"> 
+	     <list> 
+	       <value>classpath:application.properties</value> 
+	     </list> 
+	   </property> 
