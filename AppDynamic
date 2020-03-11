@@ -1,0 +1,36 @@
+第一项是Flow Map，我们看一下它的界面。这个就是Flow Map的展示效果，它提供给我们xxxxxx信息。我们也能从这个图上看到我们项目的架构以及与外部服务的连接。并看到当前负载情况，响应时间情况，以及ERROR信息。
+
+第二项性能监控，这个界面的负载信息，和响应信息就属于性能监控的一部分，同时我们可以从不同的维度去查看性能相关信息。比如从这个api的界面可以看到api的性能信息，从Database的界面查看应用使用的数据库列表，进入一个具体的数据库，可以看到数据库查询的性能信息，点击这个按钮可以查看应用向这个database发出的sql查询的执行时间。点击View SnapShot，可以看到执行这个query的请求列表。点进一个具体的请求，可以看到请求的summary信息，包括RequestGUID，URL等等。关于性能方面，我们可以看到当前请求所发出的sql query的内容，sql query执行次数，具体的执行时间。当前请求调用外部服务的请求内容，次数及执行时间。我们还能看到当前请求调用的方法栈，及每个方法的执行时间情况，这里有一个标识来说明当前方法包含的HTTP调用和JDBC调用。
+有这样细粒度的性能监控，对我们分析请求的执行情况会很有帮助。
+
+和database类似，从Remote Service的界面可以查看所有的外部服务，进入一个具体的外部服务，可以看到Remote Service调用的性能信息，点击这个按钮可以看到每个请求的平均耗时。点击View SnapShot可以看到调用当前外部服务的请求列表。
+这是第二项性能监控的内容。
+
+
+第三项是JVM监控。我们可以进入 Tier & Node tab，选择JVM，就可以看到每个Tier和每个Node的cpu使用情况和内存使用情况。并且如果进入一个具体的Node，我们可以看到当前Node的一些环境变量信息。
+另外一个可以查看历史JVM使用情况的地方是Metric Browser. 我们点击Metric Browser，点击第一项，这里有一个JVM项，在这里面可以查看历史的JVM信息，包括cpu使用。memory使用。GC。Threads信息和Classes信息。
+
+第四项Error，我们可以点击Error来查看错误的请求，点进具体的请求后可以查看错误的堆栈信息。在Metric Browser中同样有Error的统计信息，按发生的错误类型来区分，有相关的图表可以查看。
+
+第五项Metric Browser，几乎所有的数据在这个里面都可以进行图表展示。这里有一个比较有用的功能是我们可以选中一个区域，点击第一项，就能看到这个区域的请求列表，点击可以查看请求的详情。
+
+最后一项是Alert，AppDynamic同样支持告警功能，可以在不同的情况下配置不同的告警方式。
+
+
+
+
+The first item is flow map. Let's take a look at its interface. This is the display effect of flow map, which provides us with xxxxx information. We can also see the architecture of our project and the connection with external services from this diagram.  And see the current load, response time, and error information.
+
+The second item is performance monitoring. The load information and response information of this interface are part of performance monitoring. At the same time, we can view performance related information from different dimensions. For example, we can see the API performance information from this API tab, view the database performance information from this database tab, view the remote service performance information from this remote service tab. And if we click into a specific database and click this tab, we can see the content and execution time of sql query sent by the application to this database. Click View snapshot to see the list of requests that have executed this query. Click a specific request, we can see summary information of this request, including requestguid, URL and so on. In terms of performance, we can see the content, execution times and specific time consumption of the SQL query started by the current request. Also we can see the content, times and execution time of the current request to call the external service. We can also see the method stack of the current request and the execution time of each method. 
+Here is an identifier to indicate the HTTP call and JDBC call contained in the current method.
+Similar to database, we can view all http calls here, and enter a specific request to see the details.
+With such detailed performance monitoring, it will be very helpful for us to analyze the execution of requests.
+
+The third item is JVM monitoring. We can enter the tier & node tab and select the JVM to see the CPU usage and memory usage of each tier and node.
+Another place where we can view the historical JVM information is metric browser. Click metric browser, click the first item, here is a JVM item, then we can view the historical JVM information, including CPU usage. Memory usage. GC information. Threads information and classes information.
+
+The fourth item is error, we can click error tab to view the error request, and click the specific request to view the error stack trace. There are also error statistics in the metric browser, which can be distinguished by the type of error, and related charts can be viewed.
+
+The fifth item is metric browser, in which almost all data can be displayed in charts. A useful function here is that we can select an area, then click the first item to see the request list of this area, and we can also click to view the details of the request.
+
+The last item is alert. Appdynamic also supports the alarm function. Different alert method can be configured in different situations.
