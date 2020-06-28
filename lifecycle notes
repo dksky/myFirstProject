@@ -1,0 +1,49 @@
+
+1. Resigtration Center
+	Kubernetes solution:
+2. Networking
+	Service
+		主要用于集群内服务间依赖，也提供集群内部对外部服务的访问。
+		3种类型以及对应的应用场合
+		clusterIp
+			主要用于：
+			例子yml：
+		loadbalance
+			主要用于：
+			例子yml：
+		nodeport
+			主要用于：
+			例子yml：
+	Route
+		类似于网关层，主要暴露hostname给外界，使外界可以访问到服务所属应用。
+		例子yml：
+3. Configuration
+	Configmap
+		明文，用来添加为应用添加一些环境变量或者配置。
+		用途1：添加环境变量。
+			例子yml：
+		用途2：当做配置文件mount到对应的路径下。
+			例子yml：
+		用途3：和spring cloud kubernates集成。统一的配置中心。
+			例子yml
+	Secret
+		密文，secret 提供了一种机制去保存敏感信息，常用来添加一些账号及授权之类的信息。
+		例子yml：
+4. Security
+	citi内部有专门用于管理密码的团队secret management team. 我们将不同环境，不同类别的密码通过cmp存储在secret management那边。在ECS平台上，通过在yml中添加以下代码来确定当前实例需要获取哪些密码。之后在java应用中，通过使用他们提供的jar包依赖以及以下代码来获取密码的具体值。
+5. Load Balancing
+6. High Availability
+7. Deployment
+	DeploymentConfig
+		主要用于：
+		例子yml：
+		
+	StatefulSet	
+		主要用于：
+		例子yml：
+
+8. CI/CD
+	那个图，写一下提交代码到部署的整个流程。新的branch标准。公用template yml file（从configmap中拿）的实现和配置。
+	写一下当前的pipeline的一些OC常用的自定义配置方法。
+9. Monitoring
+
