@@ -1,0 +1,1 @@
+ SELECT category, count(1) as total, sum(case status when 1 then 1 else 0 end) as success FROM (  SELECT 	* FROM 	pipeline a WHERE 	( 		SELECT 			count(1) 		FROM 			pipeline 		WHERE 			category = a.category 		AND sort <= a.sort 	) <= 20  ) group by category;
