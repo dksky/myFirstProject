@@ -1,0 +1,154 @@
+1. 访问修饰符作用范围由大到小是。答案：D，难度系数：1
+A：private-default-protected-public
+B：public-default-protected-private
+C：private-protected-default-public
+D：public-protected-default-private
+
+2. java中启动一个新创建的线程需要调用Thread类的哪个方法？ 答案：A，难度系数：1
+A. start()方法
+B. run()方法
+C. start()方法或者run()方法
+
+3. 下列哪种描述是对的？ 答案：B，难度系数：3
+A. java中的volatile变量可以保证线程安全
+B. java中的volatile变量不可以保证线程安全，因为它不能满足线程的原子性
+C. java中的volatile变量不可以保证线程安全，因为它不能满足线程的可见性
+D. java中的volatile变量不可以保证线程安全，因为它不能满足线程的有序性
+
+4. AQS是什么？答案：A，难度系数：4
+A. AQS是java并发包的核心基础组件。其包含的核心组件有：state变量、加锁线程、通过双向链表实现的等待队列等。
+B. AQS是java并发包的核心基础组件。其包含的核心组件有：state变量、加锁线程、通过单向链表实现的等待队列等。
+C. AQS是java NIO包的基础组件。它实现了IO的多路复用。
+D. AQS是java NIO包的基础组件。它实现了NIO中的缓冲区。
+
+5. 如下代码
+	public class A {
+		public String show(A a) { return "A+A "; }
+		public String show(C c) { return "A+C "; }
+	}
+	public class B extends A {
+		public String show(B b) { return "B+B "; }
+		public String show(C c) { return "B+C "; }	
+	}
+	public class Test {
+		public static void main(String[] args) {
+			A a = new C();
+			System.out.print(a.show(a));
+			B b = new C();
+			System.out.print(b.show(b));
+			C c = new C();
+			System.out.print(c.show(c));
+			A ab = new B();
+			System.out.print(ab.show(ab));
+		}
+	}
+请选择运行Test类的main方法之后，输出结果是什么？ 答案：C，难度系数：2
+A: A+A B+B B+C B+B 
+B: B+B B+B B+C B+B 
+C: A+A B+B B+C A+A 
+D: A+A B+B A+C A+A 
+
+6. 如下代码
+	public class A {
+		public int a;
+		{System.out.println("parent class, constructor code blocks");}
+		
+		static {System.out.println("parent class, static code blocks");}
+		
+		public A() {
+			System.out.println("parent class, constructor method");
+		}
+	}
+	public class B extends A {
+		{System.out.println("sub class, constructor code blocks");}
+		
+		static {System.out.println("sub class, static code blocks");}
+		
+		public B() {
+			System.out.println("sub class, constructor method, a="+a);
+		}
+	}
+	public class Test {
+		public static void main(String[] args) {
+			A a = new B();
+		}
+	}
+	输出结果项：
+	1. parent class, constructor code blocks
+	2. parent class, constructor method
+	3. parent class, static code blocks
+	4. sub class, constructor code blocks
+	5. sub class, constructor method, a=0
+	6. sub class, static code blocks
+请选择运行Test类的main方法之后，输出结果的顺序是什么？ 答案：D，难度系数：2
+A. 3,1,2,6,4,5
+B. 3,6,2,1,5,4
+C. 3,6,1,4,2,5
+D. 3,6,1,2,4,5
+
+7. 下面关于JAVA的垃圾回收机制，正确的是（ ） 答案：B，难度系数：2
+A. 当调用“System.gc()”来强制回收时，系统会立即回收垃圾
+B. 垃圾回收不能确定具体的回收时间
+C. 程序可明确地标识某个局部变量的引用不再被使用
+D. 程序可以显式地立即释放对象占有的内存
+
+8. 如下代码
+	10. public Object m() {
+	11. Object o = new Float(3.14F);
+	12. Object [] oa = new Object[1];
+	13. oa[0] = o;
+	14. o = null;
+	15. oa[0] = null;
+	16. print 'return 0';
+	17. }
+当Float对象在第11行被创建后, 什么时候能够被垃圾回收? 答案：C，难度系数：2
+A. 13行以后.
+B. 14行以后.
+C. 15行以后.
+D. 16行以后.
+
+9. Java NIO属于以下哪种IO的方式？ 答案：B，难度系数：4
+A. 同步阻塞
+B. 同步非阻塞
+C. 异步阻塞
+D. 异步非阻塞
+
+10. 你所知道的设计模式（除了单例模式）都有哪些？请至少写出3个。难度系数：1
+创建型模式，共五种：工厂方法模式、抽象工厂模式、单例模式、建造者模式、原型模式。
+结构型模式，共七种：适配器模式、装饰器模式、代理模式、外观模式、桥接模式、组合模式、享元模式。
+行为型模式，共十一种：策略模式、模板方法模式、观察者模式、迭代子模式、责任链模式、命令模式、备忘录模式、状态模式、访问者模式、中介者模式、解释器模式。
+
+11. 请用代码实现一个单例模式。难度系数：2
+饿汉式：
+public class Singleton {
+    // 直接创建对象
+    public static Singleton instance = new Singleton();
+    // 私有化构造函数
+    private Singleton() {
+    }
+    // 返回对象实例
+    public static Singleton getInstance() {
+        return instance;
+    }
+}
+
+懒汉式：
+public class Singleton {
+    // 声明变量
+    private static volatile Singleton singleton = null;
+    // 私有构造函数
+    private Singleton() {
+    }
+    // 提供对外方法
+    public static Singleton getInstance() {
+        if (singleton == null) {
+            synchronized (Singleton.class) {
+                if (singleton == null) {
+                    singleton = new Singleton();
+                }
+            }
+        }
+        return singleton;
+    }
+}
+
