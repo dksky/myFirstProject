@@ -1,38 +1,23 @@
-For angularjs retirement, I will open the updated page and wanwan will talk about the details.
-
-针对logging solution，我们将可以使用kibana来查询微服务日志和batch job日志。这个就是kibana的界面，首先选择我们oc的index。
-For logging solution, we can use kibana to query micro service log and batch job log. This is the kibana interface. First, select our OC index. 
-然后，针对微服务，我们可以通过env查看环境，通过app_name查看服务名，当然也有日志等级以及日志详情。
-Then, for micro services, we can view the environment through Env field and view the service name through app_name field. of course, there are log levels and message field which shows the log details. 
-同时，如果想查看整个链路的日志，可以通过traceid来进行搜索，我可以运行一个例子展示一下。
-At the same time, if you want to view the log of the whole request process, you can search through traceid. Traceid will be displayed at the beginning of each log. I can show you an example. 
-这个就是查询client信息的接口，会经过gateway和client service，相关的日志就都可以看到了。
-We can see that this is the api of querying client information. And We can see the relevant logs through gateway and oc-client-service.
-
-针对batch job，可以通过app_name来查询，如果我们用具体某个batch job的名字搜索，就是查看特定batch job。如果我们用oc batch来进行like查询，则可以查询到所有的batch jobs的日志。
-For batch jobs, you can use the app_name to query. If we want to check the log of a specific batch job, we can search with the name of the specific batch job. If we want to query the logs of all batch jobs, we can use OC-batch and wildcard to do a like query, just like this.
-同时batch job的日志现在也会发送到S3进行存储。他们都存储在batchjobs文件夹下。
-At the same time, the batch job log will also be sent to S3 for storage now. They are all stored in the batchjobs folder. It provides log history storage and another way to check log.
-
-这是logging的更新。
-This is the update for logging solution.
+-javaagent:E:/project/gitRep/byteman-download-3.0.1/lib/byteman.jar=listener:true,boot:E:/project/gitRep/byteman-download-3.0.1/lib/byteman.jar -Dorg.jboss.byteman.transform.all
 
 
-针对ECS cluster，Sorin目前正在申请ECS更多的资源。在申请下来之后，oc的架构会发生一些改变。这是目前的架构，会看到所有的微服务被部署在cob cluster，scdf和所有的batch job被部署在prod cluster。所以实际上用户的请求只会在cob cluster被处理。如果cob cluster挂了，就没办法提供服务了。
-And for ECS cluster, Sorin is applying for more ECS resources. After the resources have been approved, there will be some changes in the structure of OC. 
-This is the current architecture. You can see that all micro services are deployed in cob cluster, SCDF and all batch jobs are deployed in prod cluster. So in fact, the user's request will only be processed in the cob cluster. If the cob cluster down, there is no way to provide available services.
+查看rule安装状态
+bmsubmit.sh
+java -classpath E:/project/gitRep/byteman-download-3.0.1/lib/byteman-submit.jar org.jboss.byteman.agent.submit.Submit
 
-之后的架构会是下面这幅图，微服务也会同时在prod cluster运行，以live~live的模式对外提供服务。这样一个cluster出现问题还有另一个集群可以正常提供服务。
-And after the release, the architecture will be changed to this diagram. Microservices will also be run in the prod cluster. So it will provide services in a live~live mode. If there is a problem with such a cluster, another cluster can provide services normally and will not affect the use of users.
-
-这些大概就是我这边的更新。
-That's all the updates from my side.
+java org.jboss.byteman.agent.submit.Submit
+将依赖jar包加入classpath下面export出来。
 
 
+安装rule
+bmsubmit.sh -l thread.btm
+java -classpath E:/project/gitRep/byteman-download-3.0.1/lib/byteman-submit.jar org.jboss.byteman.agent.submit.Submit -l thread.btm
+
+卸载rule
+bmsubmit.sh -u thread.btm
+java -classpath E:/project/gitRep/byteman-download-3.0.1/lib/byteman-submit.jar org.jboss.byteman.agent.submit.Submit -u thread.btm
 
 
-
-
-
-
-
+检测是否正常
+bmcheck.sh thread.btm
+java -classpath E:/project/gitRep/byteman-download-3.0.1/lib/byteman.jar org.jboss.byteman.check.TestScript thread.btm
