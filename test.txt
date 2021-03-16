@@ -21,3 +21,21 @@ java -classpath E:/project/gitRep/byteman-download-3.0.1/lib/byteman-submit.jar 
 检测是否正常
 bmcheck.sh thread.btm
 java -classpath E:/project/gitRep/byteman-download-3.0.1/lib/byteman.jar org.jboss.byteman.check.TestScript thread.btm
+
+
+public static List<String[]> getRuntimeVMs(String matcher) {
+        int selfPID = Integer.parseInt(ManagementFactory.getRuntimeMXBean().getName().split("@")[0]);
+        List<String[]> targets = new ArrayList<String[]>();
+
+        VMInfo[] vms = Install.availableVMs();
+        for(VMInfo vm: vms) {
+            if(Integer.parseInt(vm.getId()) == selfPID) {
+                continue;
+            }
+            String entryClass = vm.getDisplayName().toLowerCase();
+            if(entryClass.indexOf(matcher)!=-1) {
+                targets.add(new String[] {vm.getId(), entryClass});
+            }
+        }
+        return targets;
+    }
