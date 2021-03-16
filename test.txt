@@ -22,7 +22,8 @@ java -classpath E:/project/gitRep/byteman-download-3.0.1/lib/byteman-submit.jar 
 bmcheck.sh thread.btm
 java -classpath E:/project/gitRep/byteman-download-3.0.1/lib/byteman.jar org.jboss.byteman.check.TestScript thread.btm
 
-
+import org.jboss.byteman.agent.install.Install;
+import org.jboss.byteman.agent.install.VMInfo;
 public static List<String[]> getRuntimeVMs(String matcher) {
         int selfPID = Integer.parseInt(ManagementFactory.getRuntimeMXBean().getName().split("@")[0]);
         List<String[]> targets = new ArrayList<String[]>();
