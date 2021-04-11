@@ -1,0 +1,448 @@
+build.gradle 
+@@ -31,6 +31,7 @@ dependencies {
+	compile 'com.google.code.gson:gson:2.8.0'
+	
+	// implementation files('/home/wei/jdk1.8.0_212/lib/tools.jar')
+	// implementation files('/home/wei/jdk-11.0.7/lib/jrt-fs.jar')
+	// compile(files(((URLClassLoader) ToolProvider.getSystemToolClassLoader()).getURLs()))
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+ src/main/java/com/cte4/mac/sidecar/controller/AgentController.java 
+@@ -116,26 +116,30 @@
+                }
+            } else {
+                returnMsg = "rule is already registered";
+            }
+            return returnMsg;
+        }
+        return String.format("target[pid:%s] is invalid", target);
+    }
+
+    @ApiOperation(value = "detach rule from target process")
+    @DeleteMapping(value = "/rules/{rulename}/{target}")
+    public String detachRule(@PathVariable String rulename, @PathVariable String target) {
+        TargetEntity te = repo.getTarget(target);
+        Optional<RuleEntity> find = repo.getRules().stream().filter(rule -> rule.getName().equals(rulename))
+                .findFirst();
+        if (find.isPresent()) {
+            RuleEntity re = find.get();
+            String agentID = String.valueOf(te.getPid());
+            if (weaving.detachRule(te, new String[] { re.getName() })) {
+                if (re.getName().endsWith("STD")) {
+                    log.info("::agent controller::detach rule:" + rulename);
+                    StandardMetricCollector stdCollector = StandardMetricCollector.getInstance(agentID);
+                    stdCollector.removeRule(re.getName());
+                    if(stdCollector.isRuleEmpty()) {
+                        log.info("::agent controller::remove listener:" + stdCollector.getName());
+                        WebSocketFacade.removeListener(agentID, stdCollector);
+                    }
+                } 
+                return "rule detached successfully";
+            }
+ src/main/java/com/cte4/mac/sidecar/exposer/FunctionMetricCollector.java 
+@@ -43,6 +43,7 @@ public class FunctionMetricCollector extends Collector implements MetricsCallbac
+     * temp repository before Promethues pull them
+     */
+    List<MetricFamilySamples> buffer = new ArrayList<>();
+    private int BUFFER_MAX = 10000;
+
+    @Override
+    public List<MetricFamilySamples> collect() {
+@@ -65,7 +66,16 @@ public class FunctionMetricCollector extends Collector implements MetricsCallbac
+    @Override
+    public void callback(MetricsEntity cmdEntity) {
+        synchronized (buffer) {
+            buffer.addAll(cmdEntity.getMetrics());
+            try {
+                if (buffer.size() >= BUFFER_MAX) {
+                    List<MetricFamilySamples> last100 = buffer.subList(buffer.size() - 101, buffer.size() - 1);
+                    buffer.clear();
+                    buffer.addAll(last100);
+                }
+                buffer.addAll(cmdEntity.getMetrics());              
+            } catch (Exception e) {
+                log.error("fail to add msg to collection buffer", e);
+            }
+        }
+    }
+
+ src/main/java/com/cte4/mac/sidecar/exposer/MACHealthCollector.java 
+package com.cte4.mac.sidecar.exposer;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import com.cte4.mac.sidecar.model.CmdTypEnum;
+import com.cte4.mac.sidecar.model.MetricsEntity;
+import com.cte4.mac.sidecar.model.TargetEntity;
+import com.cte4.mac.sidecar.repos.MetricRepository;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import io.prometheus.client.Collector.MetricFamilySamples;
+
+@Component
+public class MACHealthCollector implements MetricsCallback {
+
+    @Autowired
+    MetricRepository mRepo;
+
+    @Override
+    public String getName() {
+        return MACHealthCollector.class.getName();
+    }
+
+    Map<String, String> targetPorts = new HashMap<>();
+
+    @Override
+    public void callback(MetricsEntity cmdEntity) {
+        List<TargetEntity> targets = mRepo.getTargets().stream().filter(t -> t.getAgentPort() == null)
+                .collect(Collectors.toList());
+        if (targets.size() > 0) {
+            refreshTargetPorts(cmdEntity);
+            for (TargetEntity te : targets) {
+                String agentPort = targetPorts.get(String.valueOf(te.getPid()));
+                te.setAgentPort(agentPort);
+            }
+        }
+    }
+
+    /**
+     * Refresh target port from message
+     * @param cmdEntity
+     */
+    private void refreshTargetPorts(MetricsEntity cmdEntity) {
+        List<MetricFamilySamples> metrics = cmdEntity.getMetrics();
+        for (MetricFamilySamples mfs : metrics) {
+            for (MetricFamilySamples.Sample sample : mfs.samples) {
+                String pid = sample.labelValues.get(sample.labelNames.indexOf("pid"));
+                String agentID = sample.labelValues.get(sample.labelNames.indexOf("agentPort"));
+                targetPorts.put(pid, agentID);
+            }
+        }
+    }
+
+    @Override
+    public boolean isAcceptable(MetricsEntity ce) {
+        if (ce.getCmdType().equals(CmdTypEnum.FUNC) && ce.getRuleName().equals("MACHEALTH_FNC")) {
+            return true;
+        }
+        return false;
+    }
+
+}
+ src/main/java/com/cte4/mac/sidecar/exposer/StandardMetricCollector.java 
+@@ -108,6 +108,10 @@ public class StandardMetricCollector extends Collector implements MetricsCallbac
+        stdRules.remove(rule);
+    }
+
+    public boolean isRuleEmpty() {
+        return stdRules.size() == 0;
+    }
+
+    /**
+     * watch against ws
+     * 
+ src/main/java/com/cte4/mac/sidecar/service/HealthService.java 
+@@ -7,9 +7,12 @@ import java.util.stream.Collectors;
+
+import javax.annotation.PostConstruct;
+
+import com.cte4.mac.sidecar.exposer.MACHealthCollector;
+import com.cte4.mac.sidecar.model.RuleEntity;
+import com.cte4.mac.sidecar.model.TargetEntity;
+import com.cte4.mac.sidecar.repos.MetricRepository;
+import com.cte4.mac.sidecar.utils.MonitorUtil;
+import com.google.common.base.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+@@ -27,11 +30,15 @@ public class HealthService {
+    private long wtInterval;
+    @Value("${agent.helper.jar}")
+    String helperLoc;
+    @Value("${rule.preinstall}")
+    String preRules;
+
+    @Autowired
+    MetricRepository mRepo;
+    @Autowired
+    WeavingService weaving;
+    @Autowired
+    MACHealthCollector mhc;
+
+    @PostConstruct
+    public void postInit() {
+@@ -53,17 +60,29 @@ public class HealthService {
+                    if (!lostPID.isEmpty()) {
+                        log.info("detect few proc under-monitoring were down");
+                        lostPID.forEach(mRepo::delTarget);
+                        lostPID.forEach(WebSocketFacade::cleanListener);
+                    }
+                    // add new PID into monitoring list
+                    currentPID.removeAll(regPID);
+                    if (!currentPID.isEmpty()) {
+                        log.info("detect some new proc are up to monitor");
+                        for (String pID : currentPID) {
+                            TargetEntity te = mRepo.getTarget(pID);
+                            weaving.attachAgent(te);
+                            if (te.getAgentPort() != null) {
+                            final TargetEntity te = mRepo.getTarget(pID);
+                            boolean validTarget = weaving.attachAgent(te);
+                            WebSocketFacade.registerListener(pID, mhc);
+                            if (validTarget && te.getAgentPort() != null) {
+                                // weaving.attachHelpers(te, helperLoc);
+                                weaving.attachHelpersAgent(te, helperLoc);
+                                List<RuleEntity> preinstalledRules = getPreRules(Arrays.asList(preRules.split(",")));
+                                if (preinstalledRules.size() > 0) {
+                                    preinstalledRules.forEach(t -> {
+                                        try {
+                                            weaving.applyRule(te, t);
+                                        } catch (RuleInjectionException e) {
+                                            log.error("fail to apply pre-install rule:" + t);
+                                        }
+                                    });
+                                }
+                            } else {
+                                log.warn("disable the agent for proc as it's unreachable:" + te);
+                                te.setDisabled(true);
+@@ -83,6 +102,12 @@ public class HealthService {
+        targetEyes.start();
+    }
+
+    private List<RuleEntity> getPreRules(List<String> ruleNames) {
+        List<RuleEntity> finds = mRepo.getRules().stream().filter(rule -> ruleNames.contains(rule.getName()))
+                .collect(Collectors.toList());
+        return finds;
+    }
+
+    public static void main(String[] args) {
+        List<String[]> l = new ArrayList<>();
+        l.add(new String[] { "1", "app1" });
+ src/main/java/com/cte4/mac/sidecar/service/WeavingService.java 
+@@ -30,38 +30,51 @@ public class WeavingService {
+
+    /**
+     * Attach the monitoring agent
+     * 
+     * @param te
+     * @throws AgentAttachException
+     */
+    public void attachAgent(TargetEntity te) throws AgentAttachException {
+    public boolean attachAgent(TargetEntity te) throws AgentAttachException {
+        boolean attachOps = false;
+        try {
+            if (te.getAgentPort() == null || te.getAgentPort().isBlank()) {
+                if(Install.isAgentAttached(String.valueOf(te.getPid()))) {
+                // this case only happened when side-car is bounced.
+                if (Install.isAgentAttached(String.valueOf(te.getPid()))) {
+                    log.info(String.format("monitoring agent is already attached for target:%s", te));
+                    return;
+                    return attachOps;
+                }
+                int agentPort = findAvaliablePort();
+                te.setAgentPort(String.valueOf(agentPort));
+                te.setBootweaving(true);
+                // props:
+                String[] props = new String[]{};
+                String[] props = new String[] { "org.jboss.byteman.dump.generated.classes=true",
+                        "org.jboss.byteman.dump.generated.classes.directory=./dump",
+                        "org.jboss.byteman.mac.agentport=" + te.getAgentPort(),
+                        "org.jboss.byteman.mac.pid=" + te.getPid(), "org.jboss.byteman.debug",
+                        "org.jboss.byteman.verbose" };
+
+                Install.install(String.valueOf(te.getPid()), te.isBootweaving(), te.getHost(), agentPort, props);
+                te.setAgentPort(String.valueOf(agentPort));
+                log.info(String.format("attach the monitoring agent at port:%s, succssfully for target:%s", agentPort,
+                        te));
+                attachOps = true;
+            }
+        } catch (Exception e) {
+            log.error(String.format("fail to attach agent to the target process - PID:%s", te.getPid()), e);
+            throw new AgentAttachException(e);
+        }
+        return attachOps;
+    }
+
+    /**
+     * Attach helpers jar
+     * 
+     * @param te
+     * @param jarLoc
+     */
+    public boolean attachHelpers(@NonNull TargetEntity te, String jarLoc) throws HelperAttachException {
+        try {
+            Submit submit = Optional.ofNullable(getAgentHandler(te)).orElseThrow(()->new HelperAttachException(WARNING_AGENT_DOWN));
+            Submit submit = Optional.ofNullable(getAgentHandler(te))
+                    .orElseThrow(() -> new HelperAttachException(WARNING_AGENT_DOWN));
+            String result = submit.addJarsToSystemClassloader(Arrays.asList(jarLoc));
+            log.info(String.format("MAC helpers are attached, result:%s", result));
+            // List<String> jars = submit.getLoadedSystemClassloaderJars();
+@@ -74,7 +87,8 @@ public class WeavingService {
+    }
+
+    /**
+     * Attach helpers as agent model
+     * Attach helpers as agent model (cargo mode)
+     * 
+     * @param te
+     * @param jarLoc
+     * @return
+@@ -112,6 +126,7 @@ public class WeavingService {
+
+    /**
+     * Attach rule to target process
+     * 
+     * @param te
+     * @param re
+     * @return
+@@ -120,7 +135,8 @@ public class WeavingService {
+    public boolean applyRule(TargetEntity te, RuleEntity re) throws RuleInjectionException {
+        log.info(String.format("apply rule [target:%s], [rule:%s]", te, re.getName()));
+        try {
+            Submit submit = Optional.ofNullable(getAgentHandler(te)).orElseThrow(()->new RuleInjectionException(WARNING_AGENT_DOWN));
+            Submit submit = Optional.ofNullable(getAgentHandler(te))
+                    .orElseThrow(() -> new RuleInjectionException(WARNING_AGENT_DOWN));
+            ByteArrayInputStream is = new ByteArrayInputStream(re.getScript().getBytes());
+            String result = submit.addRulesFromResources(Arrays.asList(is));
+            te.addRule(re.clone());
+@@ -134,6 +150,7 @@ public class WeavingService {
+
+    /**
+     * retrive the agent handler
+     * 
+     * @param te
+     * @return
+     */
+@@ -152,6 +169,7 @@ public class WeavingService {
+
+    /**
+     * Detach rules
+     * 
+     * @param te
+     * @param re
+     * @return
+@@ -159,11 +177,15 @@ public class WeavingService {
+    public boolean detachRule(TargetEntity te, String[] ruleNameArr) {
+        log.info(String.format("TODO: detach [target:%s], [rule:%s]", te, Arrays.asList(ruleNameArr)));
+        try {
+            Submit submit = Optional.ofNullable(getAgentHandler(te)).orElseThrow(()->new RuleDetachException(WARNING_AGENT_DOWN));
+            List<RuleEntity> targetRules = te.getRules().stream().filter(o->Arrays.stream(ruleNameArr).anyMatch(t->t == o.getName())).collect(Collectors.toList());
+            for(RuleEntity re:targetRules) {
+                if(!re.isDisabled()) {
+                    String result = submit.deleteRulesFromResources(Arrays.asList(new ByteArrayInputStream(re.getScript().getBytes())));
+            Submit submit = Optional.ofNullable(getAgentHandler(te))
+                    .orElseThrow(() -> new RuleDetachException(WARNING_AGENT_DOWN));
+            List<RuleEntity> targetRules = te.getRules().stream()
+                    .filter(o -> Arrays.stream(ruleNameArr).anyMatch(t -> t == o.getName()))
+                    .collect(Collectors.toList());
+            for (RuleEntity re : targetRules) {
+                if (!re.isDisabled()) {
+                    String result = submit.deleteRulesFromResources(
+                            Arrays.asList(new ByteArrayInputStream(re.getScript().getBytes())));
+                    te.delRule(re);
+                    log.info(String.format("rule[%s] applied, result:%s", re.getName(), result));
+                }
+ src/main/java/com/cte4/mac/sidecar/service/WebSocketFacade.java 
+@@ -90,7 +90,7 @@ public class WebSocketFacade {
+
+    @OnError
+    public void onError(Session session, Throwable e) {
+        log.info("get unexpected error", e);
+        log.info("::ws-server::onError: ", e);
+        // try {
+        // session.getBasicRemote().sendText("server error:" + e.getMessage());
+        // } catch (IOException e1) {
+@@ -152,6 +152,21 @@ public class WebSocketFacade {
+        wsf.listeners.removeIf(listener -> listener.getName().equals(callback.getName()));
+    }
+
+    /**
+     * Clean up all listeners
+     * @param agent
+     */
+    public static void cleanListener(String agent) {
+        List<MetricsCallback> reg = listenerRegistery.get(agent);
+        if (reg != null) {
+            reg.clear();
+        }
+        WebSocketFacade wsf = clients.get(agent);
+        if (wsf != null) {
+            wsf.listeners.clear();
+        }
+    }
+
+    public long getDuration() {
+        return System.currentTimeMillis() - this.onlineTS;
+    }
+ src/main/resources/application.properties 
+@@ -5,4 +5,5 @@ agent.helper.jar=/mnt/d/code/e4/machelper/build/libs/machelper-0.0.1.jar
+watcher.vm-matcher=cte4
+watcher.interval=5
+rule.func.scripts=rulescripts/
+rule.preinstall=MACHEALTH_FNC,JVM_STD
+logging.pattern.console=%d{yyyy/MM/dd-HH:mm:ss} [%thread] %-5level %logger- %msg%n
+ src/main/resources/rulescripts/MACHEALTH_FNC.btm 
+RULE MACHEALTH_FNC
+CLASS com.cte4.mac.machelper.utils.MacCargo
+METHOD process
+HELPER com.cte4.mac.machelper.rules.function.MacHealthHelper
+AT ENTRY
+IF true
+DO debug("activate MAC health check");
+ENDRULE
+\ No newline at end of file
+ src/main/resources/rulescripts/SYSINIT.btm 
+# this rule is to init the whole environment including cargo for target process
+# RULE set SYSINIT
+# CLASS com.cte4.mac.machelper.rules.SysInitHelper
+# METHOD init("123")
+# ENDRULE
+
+RULE set INIT_CARGO
+CLASS java.lang.System
+METHOD setProperty(String, String)
+# CLASS com.cte4.mic.appclient.controller.DemoController
+# METHOD putProperty(String, String)
+AT ENTRY
+IF TRUE
+DO debug("====");
+   System.out.println("call set property")
+ENDRULE
+ src/main/resources/rulescripts/USAGE_FNC.btm 
+@@ -14,5 +14,6 @@ AT EXIT
+BIND ts : long = getElapsedTimeFromTimer($0)
+IF TRUE
+DO sendMetrics($CLASS, $METHOD, ts);
+   debug("==**==");
+   deleteTimer($0)
+ENDRULE
+\ No newline at end of file
+ src/test/java/com/cte4/mac/sidecar/service/AttachHelperJar.java 
+加载差异
+文件已移除，差异被折叠了
+ src/test/java/com/cte4/mac/sidecar/service/TestSubmit.java 
+package com.cte4.mac.sidecar.service;
+
+import java.util.Properties;
+
+import org.jboss.byteman.agent.submit.Submit;
+
+public class TestSubmit {
+
+    public static void main(String[] args) throws Exception {
+        int agentPort = 11390;
+        Submit submit = new Submit("localhost", agentPort);
+        Properties p = new Properties();
+        p.setProperty("org.jboss.byteman.agent_port", "" + agentPort);
+        p.setProperty("org.jboss.byteman.debugsss", "false");
+        p.setProperty("org.jboss.byteman.verbose", "false");
+        
+        submit.setSystemProperties(p);
+    }
+    
+}
