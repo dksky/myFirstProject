@@ -1,0 +1,18 @@
+1. Deep Dive Diagram
+这个图是在OC架构图的基础上进行的更深入的细节流程展示。它描述了一个具体的请求的完整flow。
+用户请求通过CV，经过wip做负载均衡，被转发到gateway，gateway会请求entitlement来获取用户令牌。在entitlement中，它会先请求EEMS获取用户entitlement数据，如果获取不到，则会请求oc-cache-service来获取之前缓存的entitlement数据，保证EEMS挂掉不会影响OC的使用。entitlement根据获取的ent 数据构建UserContext，并通过jwt生成user token，返回gateway。
+假设当前请求是saveclient，需要用到client 服务，gateway就会转发请求到client service。在client service处理过程中，会通过feign client调用所需要的其他服务，如cache service，在完成save client操作之后，也会同步更新elasticsearch中与client有关的index。
+
+在这个图中，如果一个gateway down，请求会被发送到另一个集群。如果其中某个下游微服务down，则发送到这个集群的请求都会失败。
+
+同时在这张图的中间，有一些operation system，例如用于监控的Health monitor和Appdynamics，用于日志的GSP ELK和s3。
+
+2. Engineer
+Release tool
+针对release tool，第一阶段的开发已经完成了，并在sprint22开始使用了。现在我们设计了phase2要做的需求。根据预期结果，我们列了一下release准备流程在有release tool前后的差异。
+
+Simple monitor
+我们看到了swaroopa的反馈。
+针对road功能，haibo会work on this
+针对monitor数据不准确的问题，我们会将监控内容从pod的运行状态改为spring actuator health api的状态。
+针对版本号错误的问题，当前我们还没有重现这个问题，会monitor一段时间，重现之后会尝试解决问题。如果nam team可以提供更详细信息来帮助重现问题会更好。
