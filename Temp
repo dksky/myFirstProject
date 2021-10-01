@@ -16,3 +16,13 @@ Simple monitor
 针对road功能，haibo会work on this
 针对monitor数据不准确的问题，我们会将监控内容从pod的运行状态改为spring actuator health api的状态。
 针对版本号错误的问题，当前我们还没有重现这个问题，会monitor一段时间，重现之后会尝试解决问题。如果nam team可以提供更详细信息来帮助重现问题会更好。
+
+
+
+appdynamics:
+1. OC 用来帮助定位PROD环境下的bug。之前有帮助发现过线上out of memory的问题。
+2. 使用Data Collector收集关键API的一些参数信息，帮助分析问题。
+2. 用来帮助定位性能问题。但是这个目前只能帮助定位后端性能问题，比如某个http调用慢或者某个sql query慢。
+如果性能问题发生在前端。目前还没有更好的方式来定位。
+3. 用来帮助确定一个请求的请求链路，比如都经过了哪些微服务之类的。
+4. 可以用来帮助发现线上发生的API调用error。
