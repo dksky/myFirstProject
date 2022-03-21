@@ -1,0 +1,236 @@
+public static void copySheets(HSSFSheet source, XSSFSheet destination) {
+ 
+        int maxColumnNum = 0;
+        // 获取全部的合并单元格
+        List<CellRangeAddress> cellRangeAddressList = source.getMergedRegions();
+        for (int i = source.getFirstRowNum(); i <= source.getLastRowNum(); i++) {
+            HSSFRow srcRow = source.getRow(i);
+            XSSFRow destRow = destination.createRow(i);
+            if (srcRow != null) {
+                // 拷贝行
+                copyRow(destination, srcRow, destRow, cellRangeAddressList);
+                if (srcRow.getLastCellNum() > maxColumnNum) {
+                    maxColumnNum = srcRow.getLastCellNum();
+                }
+            }
+        }
+        for (int i = 0; i <= maxColumnNum; i++) {
+            destination.setColumnWidth(i, source.getColumnWidth(i));
+        }
+ 
+        // 拷贝图片
+        copyPicture(source, destination);
+    }
+
+
+
+
+
+
+// 拷贝行
+    public static void copyRow(XSSFSheet destSheet, HSSFRow srcRow, XSSFRow destRow,
+                                List<CellRangeAddress> cellRangeAddressList) {
+ 
+        // 拷贝行高
+        destRow.setHeight(srcRow.getHeight());
+ 
+        for (int j = srcRow.getFirstCellNum(); j <= srcRow.getLastCellNum(); j++) {
+            HSSFCell oldCell = srcRow.getCell(j);
+            XSSFCell newCell = destRow.getCell(j);
+            if (oldCell != null) {
+                if (newCell == null) {
+                    newCell = destRow.createCell(j);
+                }
+                // 拷贝单元格
+                copyCell(oldCell, newCell, destSheet);
+ 
+                // 获取原先的合并单元格
+                CellRangeAddress mergedRegion = getMergedRegion(cellRangeAddressList, srcRow.getRowNum(),
+                        (short) oldCell.getColumnIndex());
+ 
+                if (mergedRegion != null) {
+                    // 参照创建合并单元格
+                    CellRangeAddress newMergedRegion = new CellRangeAddress(mergedRegion.getFirstRow(),
+                            mergedRegion.getLastRow(), mergedRegion.getFirstColumn(), mergedRegion.getLastColumn());
+                    destSheet.addMergedRegion(newMergedRegion);
+                }
+            }
+        }
+ 
+    }
+ 
+    // 拷贝单元格
+    public static void copyCell(HSSFCell oldCell, XSSFCell newCell, XSSFSheet destSheet) {
+ 
+        HSSFCellStyle sourceCellStyle = oldCell.getCellStyle();
+        XSSFCellStyle targetCellStyle = destSheet.getWorkbook().createCellStyle();
+ 
+        if (sourceCellStyle == null) {
+            sourceCellStyle = oldCell.getSheet().getWorkbook().createCellStyle();
+        }
+ 
+        targetCellStyle.setFillForegroundColor(sourceCellStyle.getFillForegroundColor());
+        // 设置对齐方式
+        targetCellStyle.setAlignment(sourceCellStyle.getAlignment());
+        targetCellStyle.setVerticalAlignment(sourceCellStyle.getVerticalAlignment());
+ 
+        // 设置字体
+        XSSFFont xssfFont = destSheet.getWorkbook().createFont();
+        HSSFFont hssfFont = sourceCellStyle.getFont(oldCell.getSheet().getWorkbook());
+        copyFont(xssfFont, hssfFont);
+        targetCellStyle.setFont(xssfFont);
+        // 文本换行
+        targetCellStyle.setWrapText(sourceCellStyle.getWrapText());
+ 
+        targetCellStyle.setBorderBottom(sourceCellStyle.getBorderBottom());
+        targetCellStyle.setBorderLeft(sourceCellStyle.getBorderLeft());
+        targetCellStyle.setBorderRight(sourceCellStyle.getBorderRight());
+        targetCellStyle.setBorderTop(sourceCellStyle.getBorderTop());
+        targetCellStyle.setBottomBorderColor(sourceCellStyle.getBottomBorderColor());
+        targetCellStyle.setDataFormat(sourceCellStyle.getDataFormat());
+        targetCellStyle.setFillBackgroundColor(sourceCellStyle.getFillBackgroundColor());
+        targetCellStyle.setFillPattern(sourceCellStyle.getFillPattern());
+ 
+        targetCellStyle.setHidden(sourceCellStyle.getHidden());
+        targetCellStyle.setIndention(sourceCellStyle.getIndention());
+        targetCellStyle.setLeftBorderColor(sourceCellStyle.getLeftBorderColor());
+        targetCellStyle.setLocked(sourceCellStyle.getLocked());
+        targetCellStyle.setQuotePrefixed(sourceCellStyle.getQuotePrefixed());
+        targetCellStyle.setReadingOrder(ReadingOrder.forLong(sourceCellStyle.getReadingOrder()));
+        targetCellStyle.setRightBorderColor(sourceCellStyle.getRightBorderColor());
+        targetCellStyle.setRotation(sourceCellStyle.getRotation());
+ 
+        newCell.setCellStyle(targetCellStyle);
+ 
+        switch (oldCell.getCellType()) {
+            case STRING:
+                newCell.setCellValue(oldCell.getStringCellValue());
+                break;
+            case NUMERIC:
+                newCell.setCellValue(oldCell.getNumericCellValue());
+                break;
+            case BLANK:
+                newCell.setCellType(CellType.BLANK);
+                break;
+            case BOOLEAN:
+                newCell.setCellValue(oldCell.getBooleanCellValue());
+                break;
+            case ERROR:
+                newCell.setCellErrorValue(oldCell.getErrorCellValue());
+                break;
+            case FORMULA:
+                newCell.setCellFormula(oldCell.getCellFormula());
+                break;
+            default:
+                break;
+        }
+ 
+    }
+ 
+    // 拷贝字体设置
+    public static void copyFont(XSSFFont xssfFont, HSSFFont hssfFont) {
+        xssfFont.setFontName(hssfFont.getFontName());
+        xssfFont.setBold(hssfFont.getBold());
+        xssfFont.setFontHeight(hssfFont.getFontHeight());
+        xssfFont.setCharSet(hssfFont.getCharSet());
+        xssfFont.setColor(hssfFont.getColor());
+        xssfFont.setItalic(hssfFont.getItalic());
+        xssfFont.setUnderline(hssfFont.getUnderline());
+        xssfFont.setTypeOffset(hssfFont.getTypeOffset());
+        xssfFont.setStrikeout(hssfFont.getStrikeout());
+    }
+ 
+    // 根据行列获取合并单元格
+    public static CellRangeAddress getMergedRegion(List<CellRangeAddress> cellRangeAddressList, int rowNum, short cellNum) {
+        for (int i = 0; i < cellRangeAddressList.size(); i++) {
+            CellRangeAddress merged = cellRangeAddressList.get(i);
+            if (merged.isInRange(rowNum, cellNum)) {
+                // 已经获取过不再获取
+                cellRangeAddressList.remove(i);
+                return merged;
+            }
+        }
+        return null;
+    }
+
+
+
+
+
+@Override
+public float getColumnWidthInPixels(int column){
+    int cw = getColumnWidth(column);
+    int def = getDefaultColumnWidth()*256;
+    float px = (cw == def ? PX_DEFAULT : PX_MODIFIED);
+
+    return cw/px;
+}
+
+
+
+
+
+// 拷贝图片
+    public static void copyPicture(HSSFSheet source, XSSFSheet destination) {
+        // 获取sheet中的图片信息
+        List<Map<String, Object>> mapList = getPicturesFromHSSFSheet(source);
+ 
+        XSSFDrawing drawing = destination.createDrawingPatriarch();
+ 
+        for (Map<String, Object> pictureMap: mapList) {
+ 
+            HSSFClientAnchor hssfClientAnchor = (HSSFClientAnchor) pictureMap.get("pictureAnchor");
+ 
+            HSSFRow startRow = source.getRow(hssfClientAnchor.getRow1());
+            float startRowHeight = startRow == null ? source.getDefaultRowHeightInPoints() : startRow.getHeightInPoints();
+ 
+            HSSFRow endRow = source.getRow(hssfClientAnchor.getRow1());
+ 
+            float endRowHeight = endRow == null ? source.getDefaultRowHeightInPoints() : endRow.getHeightInPoints();
+ 
+            // hssf的单元格，每个单元格无论宽高，都被分为 宽 1024个单位 高 256个单位。
+            // 32.00f 为默认的单元格单位宽度 单元格宽度 / 默认宽度 为像素宽度
+            XSSFClientAnchor xssfClientAnchor = drawing.createAnchor(
+                    (int) (source.getColumnWidth(hssfClientAnchor.getCol1()) / 32.00f
+                            / 1024 * hssfClientAnchor.getDx1() * Units.EMU_PER_PIXEL),
+                    (int) (startRowHeight / 256 * hssfClientAnchor.getDy1() * Units.EMU_PER_POINT),
+                    (int) (source.getColumnWidth(hssfClientAnchor.getCol2()) / 32.00f
+                            / 1024 * hssfClientAnchor.getDx2() * Units.EMU_PER_PIXEL),
+                    (int) (endRowHeight / 256 * hssfClientAnchor.getDy2() * Units.EMU_PER_POINT),
+                    hssfClientAnchor.getCol1(),
+                    hssfClientAnchor.getRow1(),
+                    hssfClientAnchor.getCol2(),
+                    hssfClientAnchor.getRow2());
+            xssfClientAnchor.setAnchorType(hssfClientAnchor.getAnchorType());
+ 
+            drawing.createPicture(xssfClientAnchor,
+                    destination.getWorkbook().addPicture((byte[])pictureMap.get("pictureByteArray"),
+                            Integer.parseInt(pictureMap.get("pictureType").toString())));
+ 
+            System.out.println("imageInsert");
+        }
+    }
+ 
+    /**
+     * 获取图片和位置 (xls)
+     */
+    public static List<Map<String, Object>> getPicturesFromHSSFSheet (HSSFSheet sheet) {
+        List<Map<String, Object>> mapList = new ArrayList<>();
+        List<HSSFShape> list = sheet.getDrawingPatriarch().getChildren();
+        for (HSSFShape shape : list) {
+            if (shape instanceof HSSFPicture) {
+                Map<String, Object> map = new HashMap<>();
+                HSSFPicture picture = (HSSFPicture) shape;
+                HSSFClientAnchor cAnchor = picture.getClientAnchor();
+                HSSFPictureData pdata = picture.getPictureData();
+                map.put("pictureAnchor", cAnchor);
+                map.put("pictureByteArray", pdata.getData());
+                map.put("pictureType", pdata.getPictureType());
+                map.put("pictureSize", picture.getImageDimension());
+                mapList.add(map);
+            }
+        }
+        return mapList;
+    }
+ 
+}
