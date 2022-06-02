@@ -1,23 +1,50 @@
-针对ECS Migration和retire物理机。我想简单的通过一些OC的架构图介绍一下。这幅图列出了OC的所有微服务，从图中可以看出除了oc-cache之外的所有其他微服务都是运行在ECS上的。除了平台服务，前端服务后端服务的区分之外，绿色背景的服务是相对比较独立的服务。这是我在检查代码发现没有feign client调用或其他oc微服务api调用后得出的结论。如果有不准确的地方请帮忙修改一下。针对retire物理机，刚刚我们讲了大部分的微服务包括oc gateway service已经迁移到ECS上了，所以我们需要修改外部所有会调用OC Api的地方，比如citivelocity，FAS91等等。
-针对oc core service retire，我们将oc core service拆分为多个小的微服务。在这个图中的新后端微服务中，你可以找到它们。同样有部分代码也被迁移到了已经存在的微服务，如oc client service.
+微服务解耦
 
-针对muocbatch retire，我们现在使用SCDF平台来管理batch jobs，因为在之前的一些会议，比如跟QA team的SCDF demo会议以及Tech Forum会议当中，SCDF的概念以及相关demo已经被展示了。所以我想你们已经了解了SCDF的概念，并且能够基于它进行batch job的开发了，对么？所以我们不对SCDF进行介绍了，在sprint18a，我们将muocbatch中的batch job迁移到了scdf当中。
-
-针对sharelib retire，这里有一个链接。在这个页面我们介绍了OC现在的几个通用sharelib。oc commin util是用来balabala。oc common autoconfigure是用来balabala。
-spring kubernetes integration是用来balabala。同时这里我们列了一些对应的配置项以供参考。
-
-针对包结构，我们重构了包结构。你可以在这个界面看到推荐的包结构。如果我们能够按这个规范进行开发。就会显得比较有条理，方便我们以后查找对应代码。
-
-针对配置中心，我们现在使用kubernetes的configmap当做配置中心使用。在oc common autoconfigure依赖中，我们针对不同环境有不同的openshift配置。在openshift集群当中，我们配置有一些configmap，用于保存对应环境的通用配置。就是这些以oc common开头的configmap，同时会有标签OCConfig。这些configmap分别存储不同类型的公用配置，比如db，开发相关，外部系统相关。在各个微服务的bootstrap.yml中配置了所需要使用的configmap的名字列表。这样我们以后上线前check配置文件会方便很多。
-针对开发相关。首先是如何在本地运行起项目，其实只需要运行java main方法即可。项目会通过配置的spring profile，自动加载oc common configure中对应的kubernetes相关配置，以自动连接到对应的openshift获取相关信息并启动。项目正常启动之后，如果接口不需要用到UserContext，则可以直接通过单个service自己的swagger page调试接口。如果接口需要用到登录用户的UserContext信息，则可以通过qa上gateway service的swagger界面结合smart gateway，对本地接口进行调试。如果需要在qa环境通过UI debug一些issue，同样可以使用smart gateway完成。
-针对监控，我们目前有oc-monitor-service。可以简单监控到环境上服务的健康状态。
-针对日志部分，我们目前是将日志统一存储在s3 bucket当中。在oc common configure中，有对应的logback日志相关配置，其中我们会使用s3相关的rolling policy。在每个微服务当中，只需要在template.yml中加这段代码添加环境变量，以及在Dockerfile中指定读取的logback配置文件，即可将微服务日志发送到s3 bucket。针对查看日志的方式，s3提供有web browser，我们可以分享并统一使用这个登录账户。登录之后，我们可以进入logs目录，这一层目录存储不同的openshift cluster名字，选中一个cluster，这一层目录存储不同的服务名，选中一个服务名。这一层存储不同的pod名。点进去之后就能看到对应pod的历史日志文件了。双击可以下载到本地，进行查看。
-
-针对UAT环境出问题的解决步骤：
-1. 检查oc monitor service，看是否有服务挂掉。
-2. 检查Appdynamics，看是否有严重告警信息。
-3. 如果UI界面整个出不来或者用户信息接口不正常work. 则查看oc entitlement service或者oc cache service是否正常。
-4. 如果部分模块不正常work，则查看该模块的log来确认错误原因。如果是数据库连接异常，则需要把错误记录下来以供追踪，并重启服务以修复问题。
+<数据库访问层面解耦>
+	1. 
+使用archguard 分析不同服务中使用到的数据库表。
 
 
-针对CI/CD，我们目前部署使用的流程都是Deploy，原来的Deploy to QA流程不再使用。
+
+            结果：新增的ddl改动可能会影响哪些服务就比较清晰了。
+
+	1. 
+按服务的功能定位，将不合理的数据库表维护代码进行移动重构。
+
+
+
+            结果：同时做的足够好，新的ddl改动影响范围应该仅限于一个服务。
+
+	1. 
+将服务/表按cohort进行划分。不同cohort专注于不同的微服务开发和表的更新维护。
+
+
+
+            结果：不同cohort的新增DDL改动不会影响其他cohort。
+
+<微服务层面解耦>
+	1. 
+查看是否能通过archguard 分析不同服务的API，正在被哪些其他服务使用。
+
+
+
+            结果：新增的API改动可能会影响哪些其他服务就比较清晰了。可以依据此判断是否会影响其他cohort所属的微服务功能。
+
+
+<页面功能层面解耦>
+	1. 
+分析不同服务的API被哪些前端项目使用，使用在哪些UI界面。
+
+
+
+            结果：新增的API改动可能会影响哪些UI界面的功能就比较清晰了。测试可以比较有针对性的测试，同时也可以比较清晰的判定API改动是否会影响其他cohort的业务功能。
+
+	1. 
+将UI界面按cohort进行划分。不同cohort专注于不同的UI 微前端界面/组件开发和与自己cohort后端服务的联调工作。
+
+
+
+            结果：不同cohort的前端开发互不影响，依赖的后端接口仅限于通用API以及自己cohort业务API。进而达成前端开发的业务功能不同cohort间互不影响，互相解耦。
+
+
+最终结果：不同cohort的上线可以独立进行，互不依赖，互不影响。
