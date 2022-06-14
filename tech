@@ -1,50 +1,16 @@
-微服务解耦
-
-<数据库访问层面解耦>
-	1. 
-使用archguard 分析不同服务中使用到的数据库表。
-
-
-
-            结果：新增的ddl改动可能会影响哪些服务就比较清晰了。
-
-	1. 
-按服务的功能定位，将不合理的数据库表维护代码进行移动重构。
+Metrics:
+1. Setup Prometheus Instance. (done)
+2. Prometheus Persistence Solution. 
+3. Push Approach: Setup a common jar package to expose metrics to rocket proxy server. (recommended) (1w)
+4. Pull Approach: Setup a jar package to start a prometheus embeded web server in java apps. (1w)
+5. Grafana Monitoring Dashboard setup. (3d)
 
 
-
-            结果：同时做的足够好，新的ddl改动影响范围应该仅限于一个服务。
-
-	1. 
-将服务/表按cohort进行划分。不同cohort专注于不同的微服务开发和表的更新维护。
-
-
-
-            结果：不同cohort的新增DDL改动不会影响其他cohort。
-
-<微服务层面解耦>
-	1. 
-查看是否能通过archguard 分析不同服务的API，正在被哪些其他服务使用。
-
-
-
-            结果：新增的API改动可能会影响哪些其他服务就比较清晰了。可以依据此判断是否会影响其他cohort所属的微服务功能。
-
-
-<页面功能层面解耦>
-	1. 
-分析不同服务的API被哪些前端项目使用，使用在哪些UI界面。
-
-
-
-            结果：新增的API改动可能会影响哪些UI界面的功能就比较清晰了。测试可以比较有针对性的测试，同时也可以比较清晰的判定API改动是否会影响其他cohort的业务功能。
-
-	1. 
-将UI界面按cohort进行划分。不同cohort专注于不同的UI 微前端界面/组件开发和与自己cohort后端服务的联调工作。
-
-
-
-            结果：不同cohort的前端开发互不影响，依赖的后端接口仅限于通用API以及自己cohort业务API。进而达成前端开发的业务功能不同cohort间互不影响，互相解耦。
-
-
-最终结果：不同cohort的上线可以独立进行，互不依赖，互不影响。
+Tracing:
+1. 选型： zipkin or jaeger or skywalking
+https://blog.csdn.net/muyimo/article/details/123123377
+https://grafana.com/docs/grafana/latest/explore/trace-integration/
+https://www.kubernetes.org.cn/8611.html
+2. Setup instance
+3. 微服务与tracing 产品进行集成
+4. Grafana中添加tracing产品数据源。添加相关的dashboard
