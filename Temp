@@ -1,3 +1,5 @@
+https://www.processon.com/view/link/615d4a610e3e74663e97fa0e#map
+
 1. Deep Dive Diagram
 这个图是在OC架构图的基础上进行的更深入的细节流程展示。它描述了一个具体的请求的完整flow。
 用户请求通过CV，经过wip做负载均衡，被转发到gateway，gateway会请求entitlement来获取用户令牌。在entitlement中，它会先请求EEMS获取用户entitlement数据，如果获取不到，则会请求oc-cache-service来获取之前缓存的entitlement数据，保证EEMS挂掉不会影响OC的使用。entitlement根据获取的ent 数据构建UserContext，并通过jwt生成user token，返回gateway。
